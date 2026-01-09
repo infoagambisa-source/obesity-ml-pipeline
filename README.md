@@ -11,7 +11,7 @@ The final solution is packaged as a **production-ready scikit-learn pipeline** f
 - **Instances:** 2,111  
 - **Features:** 16  
 - **Target:** `NObeyesdad` (7 obesity level classes)
-- **Missing Values:** None
+- **Missing Values:** None (per inspection)
 - **Notes:** ~77% of records were synthetically generated using SMOTE
 
 ### Target Classes
@@ -24,14 +24,58 @@ The final solution is packaged as a **production-ready scikit-learn pipeline** f
 - Obesity Type III  
 
 ## Problem Statement
-Predict an individual’s obesity level category using lifestyle, dietary, and physical activity features.
+Predict an individual’s obesity level category (`NObeyesdad`) using lifestyle, dietary, and physical activity features.
 
 ## Task Type
 - **Multi-class classification**
 
 ## Evaluation Metrics
-- **Primary:** Macro F1-score  
+- **Primary:** Macro F1-score (treats all classes equally) 
 - **Secondary:** Accuracy  
+
+## Approach
+1. **Data loading & inspection** (via `ucimlrepo`)
+2. **EDA** (target distribution, numeric summary, correlations)
+3. **Leakage-safe splitting** (train/validation/test with stratification)
+4. **Preprocessing** using `ColumnTransformer`
+   - Numeric: imputation + scaling
+   - Categorical: imputation + one-hot encoding (`handle_unknown="ignore"`)
+5. **Baseline model:** Logistic Regression
+6. **Model comparison:** Logistic Regression vs Random Forest vs Gradient Boosting
+7. **Hyperparameter tuning:** RandomizedSearchCV (optimized for Macro F1)
+8. **Final evaluation:** held-out test set
+
+## Results
+
+### Validation (baseline)
+- Logistic Regression:
+  - **Macro F1:** 0.8479
+  - **Accuracy:** 0.8555
+
+### Validation (model comparison)
+- Gradient Boosting:
+  - **Macro F1:** 0.9437
+  - **Accuracy:** 0.9455
+- Random Forest:
+  - **Macro F1:** 0.9365
+  - **Accuracy:** 0.9384
+
+### Tuning (cross-validation on training set)
+Best Gradient Boosting parameters:
+- `n_estimators=300`, `learning_rate=0.2`, `max_depth=3`, `subsample=0.8`
+
+Best cross-validated score:
+- **Macro F1:** 0.9646
+
+### Test (final model)
+- Tuned Gradient Boosting:
+  - **Macro F1:** 0.9476
+  - **Accuracy:** 0.9480
+
+**Confusion matrix insight:** misclassifications occur primarily between **adjacent obesity categories**  
+(e.g., boundary cases like Normal ↔ Insufficient or Overweight Level II ↔ Obesity Type I).  
+No extreme category flips were observed (e.g., Insufficient predicted as Obesity Type III).
+
 
 ## Repository Structure
 obesity-ml-pipeline/
@@ -47,4 +91,5 @@ obesity-ml-pipeline/
 ```bash
 pip install -r requirements.txt
 python -m src.train
-python -m src.predict --input data/raw/sample.csv
+python -m src.evaluate
+python -m src.predict --input data/raw/sample.csv --output predictions.csv
